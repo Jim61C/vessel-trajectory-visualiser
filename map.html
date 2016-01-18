@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+        <meta charset="utf-8">
+        <title>Website Geolocation</title>
+        <style>
+           html, body {
+              height: 100%;
+              margin: 0px;
+           } 
+           #map-canvas {
+              width: 100%;
+              height:100%;
+              float: left;
+            }
+            body{
+                padding-top: 50px;
+            }
+        </style>
+        <link href="http://getbootstrap.com/dist/css/bootstrap.min.css" rel="stylesheet">
+        <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+        <script src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false"></script>
+        <script src="http://d3js.org/d3.v3.min.js" charset="utf-8"></script>
+        <script src="//netdna.bootstrapcdn.com/bootstrap/3.1.1/js/bootstrap.min.js"></script>
+        <script src="js/loadTrajectory.js"></script>
+        <script src = "js/map.js"></script>
+    </head>
+    <body>
+        <nav class="navbar navbar-default navbar-fixed-top" role="navigation">
+          <div class="container-fluid">
+            <!-- Brand and toggle get grouped for better mobile display -->
+            <div class="navbar-header">
+              <button type="button" class="navbar-toggle" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+                <span class="sr-only">Toggle navigation</span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+                <span class="icon-bar"></span>
+              </button>
+              <a class="navbar-brand" href="#">Trajectory Visualizer</a>
+            </div>
+
+            <!-- Collect the nav links, forms, and other content for toggling -->
+            <div class="collapse navbar-collapse" id="bs-example-navbar-collapse-1">
+              <ul class="nav navbar-nav">
+                <li class="dropdown">
+                      <a href="#" class="dropdown-toggle" data-toggle="dropdown">Functionality <b class="caret"></b></a>
+                  <ul class="dropdown-menu">
+                    <li><a href="#" id = "loadTrajectory1">loadTrajectory1</a></li>
+            	   </ul>
+            	 </li>
+              </ul>
+              <ul class="nav navbar-nav navbar-right">
+                  <li><a href="#" id ="pauseStartLoading">Pause</a></li>
+                  <li><a href="#" id ="clearTrajectory">Clear Trajectory</a></li>
+              </ul>
+              <form class="navbar-form navbar-right" >
+                   
+                    <div class="form-group" >
+                      <input type="text" class="form-control" placeholder="Input filaname(eg, 1000019.csv)" id="loadFileText" style="width: 250px;">
+                    </div>
+                    <button type="submit" class="btn btn-default" name="filter" id="loadFile" >Load Trajectory</button>
+              </form>
+            </div><!-- /.navbar-collapse -->
+          </div><!-- /.container-fluid -->
+        </nav>
+
+        <div id="map-canvas"></div>
+    </body>
+</html>
