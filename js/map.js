@@ -8,6 +8,7 @@ function getMapController(){
     stopDrawing: false,
     last_drawn_point: -1,
     trajectory_points: null,
+    drawingInterval : 50,
     // warning : {
     //   path: google.maps.SymbolPath.CIRCLE,
     //   fillColor: '#',
@@ -270,11 +271,12 @@ function getMapController(){
         
         window.setTimeout(function(){
           self.drawTrajectoryAsPoints(trajectory_points,index + 1)
-        }, 1);
+        }, self.drawingInterval);
 
     },
 
     drawSingelTrajectoryPoint : function (point){
+      var self = this;
      console.log("drawSingelTrajectoryPoint:", point);
      var image = null;
      if(this.draw_item == "end_point"){
@@ -308,7 +310,7 @@ function getMapController(){
       var marker = new google.maps.Marker({
           position: myLatlng,
           map: this.map,
-          title: myLatlng.toString() + " , " + point.ts_string,
+          title: myLatlng.toString() + " , " + point.ts_string + ", index:" + (self.last_drawn_point + 1),
           icon:image,
       });
             
@@ -352,6 +354,9 @@ function getMapController(){
       if(confirm_delete_markers == true){
         this.deleteMarkers();  
       }
+    },
+    setDrawingInterval: function (interval){
+      this.drawingInterval = interval;
     }
 
   });
@@ -369,6 +374,18 @@ $(document).ready(function(){
     myMapController.initialize();
   });
 
+  var myslider = $('.slider').slider({
+    formater: function(value) {
+      return "drawing interval:"+value;
+    }
+  });
+  myMapController.setDrawingInterval($('#myslider').val());
+  $('.slider').on('slideStop', function(){
+    // console.log($('.slider').('getValue'));
+    console.log($('#myslider').val());
+    myMapController.setDrawingInterval($('#myslider').val());
+  });
+  
 
   $("#loadTrajectory1").click(function(){
     myMapController.loadTrajectory1();
