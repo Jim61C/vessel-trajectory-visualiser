@@ -294,12 +294,13 @@ function getMapController(){
      }
      else{
       image={
-          path: google.maps.SymbolPath.CIRCLE,
+          path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
           fillColor:this.color_array[0],
           fillOpacity: 0.3,
-          scale: 5,
+          scale: 3,
           strokeColor: 'white',
-          strokeWeight: 0
+          strokeWeight: 0,
+          rotation: Number(point.course_over_ground/10.0)
       };
      }
      
