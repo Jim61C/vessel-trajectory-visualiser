@@ -9,6 +9,7 @@ function getMapController(){
     last_drawn_point: -1,
     trajectory_points: null,
     drawingInterval : 50,
+    drawing_speed : 1,
     // warning : {
     //   path: google.maps.SymbolPath.CIRCLE,
     //   fillColor: '#',
@@ -197,10 +198,10 @@ function getMapController(){
       this.stopDrawing = true;
     },
 
-    restartLoading : function(){
+    restartLoading : function(finished_plotting_callback){
       var self = this;
       self.stopDrawing = false;
-      self.drawTrajectoryAsPoints(self.trajectory_points, self.last_drawn_point + 1)
+      self.drawTrajectoryAsPoints(self.trajectory_points, self.last_drawn_point + 1, finished_plotting_callback)
     },
 
     loadTrajectory : function(filename, callback){
@@ -255,7 +256,7 @@ function getMapController(){
       return lines
     },
 
-    drawTrajectoryAsPoints : function (trajectory_points, index){
+    drawTrajectoryAsPoints : function (trajectory_points, index, finished_plotting_callback){
         var self = this;
         if(self.stopDrawing){
           console.log("plotted point:", self.last_drawn_point, "/",trajectory_points.length);
@@ -264,14 +265,15 @@ function getMapController(){
         }
         if(index >= trajectory_points.length) {
           console.log("finish plotting");
+          finished_plotting_callback()
           return;
         }
         self.drawSingelTrajectoryPoint(trajectory_points[index]);
         self.last_drawn_point = index
         
         window.setTimeout(function(){
-          self.drawTrajectoryAsPoints(trajectory_points,index + 1)
-        }, self.drawingInterval);
+          self.drawTrajectoryAsPoints(trajectory_points,index + 1, finished_plotting_callback)
+        }, self.drawingInterval / self.drawing_speed);
 
     },
 
@@ -314,6 +316,15 @@ function getMapController(){
           icon:image,
       });
             
+      // update drawing speed
+      if (typeof(point.speed_over_ground) !== "undefined") {
+        if (point.speed_over_ground == 0) {
+           self.drawing_speed = 0.1
+        }
+        else {
+          self.drawing_speed = point.speed_over_ground
+        }
+      }
                 
       this.markers.push(marker);
     },
@@ -339,7 +350,7 @@ function getMapController(){
         this.setAllMap(this.map);
     },
 
-    cleanPreviousData : function(){
+    cleanPreviousData : function(ask_confirmation){
       if(this.heatmap !=null){
         this.heatmap.setMap(null);// remove from current map 
         this.heatmap = null; // set to null again
@@ -350,10 +361,16 @@ function getMapController(){
       if(this.stopDrawing != false){
         this.stopDrawing = false
       }
-      var confirm_delete_markers = confirm("Do you want to delete existing markers?");
-      if(confirm_delete_markers == true){
-        this.deleteMarkers();  
+      if (ask_confirmation){
+        var confirm_delete_markers = confirm("Do you want to delete existing markers?");
+        if(confirm_delete_markers == true){
+          this.deleteMarkers();  
+        }  
       }
+      else {
+        this.deleteMarkers();
+      }
+      
     },
     setDrawingInterval: function (interval){
       this.drawingInterval = interval;
@@ -413,7 +430,9 @@ $(document).ready(function(){
     var text = $("#pauseStartDrawing").text();
     if(text == "StartPlotting"){
       $("#pauseStartDrawing").text("PausePlotting");
-      myMapController.restartLoading();
+      myMapController.restartLoading(function () {
+        consol.log("finished from button press!")
+      });
     }
     else if(text == "PausePlotting"){
       $("#pauseStartDrawing").text("ResumePlotting");
@@ -421,7 +440,9 @@ $(document).ready(function(){
     }
     else if(text == "ResumePlotting"){
      $("#pauseStartDrawing").text("PausePlotting") ;
-     myMapController.restartLoading();
+     myMapController.restartLoading(function(){
+      consol.log("finished from button press!")
+     });
     }
   })
 
@@ -450,7 +471,7 @@ $(document).ready(function(){
       console.log("finish loading");
       alert("loading finished");
       //clean the storage associated with previous set of data
-      myMapController.cleanPreviousData();
+      myMapController.cleanPreviousData(true);
     });
     return false;
   });
@@ -463,46 +484,74 @@ $(document).ready(function(){
     console.log("trying to upload new file");
     var files = document.getElementById('uploadFile').files;
     console.log(files);
-    if(files[0].name.indexOf('.csv') != -1){
-      var csv_reader = new FileReader();
-      if(files[0].name.indexOf('endpoints') != -1){
-        myMapController.draw_item = "end_point";
-      }
-      else{
-        myMapController.draw_item = "trajectory_point"; 
-      }
-
-      csv_reader.onload = function(e) {
-        console.log(e)
-        var contents = e.target.result;
-        trajectoryData = myMapController.processData(contents)
-        myMapController.trajectory_points = trajectoryData
-        // myMapController.trajectory_points = trajectoryData.slice(0,1)
-        console.log("self.trajectory_points:", myMapController.trajectory_points);
-        console.log("finish loading");
-        alert("loading finished");
-        myMapController.cleanPreviousData();
-      };
-      csv_reader.readAsText(files[0]);
+    if (files.length == 1) {
+      loadFileContentWorker(myMapController, files[0], true, function() {
+        console.log("load finished callback, 1 file load case")
+      });
     }
-    else if(files[0].name.indexOf('.txt') != -1){
-      console.log('txt reader used!');
-      var txt_reader = new FileReader();
-      txt_reader.onload = function(e) {
-        var contents = e.target.result;
-        trajectoryData = myMapController.processTxtData(contents)
-        myMapController.trajectory_points = trajectoryData
-        console.log("self.trajectory_points:", myMapController.trajectory_points);
-        console.log("finish loading");
-        alert("loading finished");
-        myMapController.cleanPreviousData();
-      };
-      txt_reader.readAsText(files[0]);
+    else {
+      conseutiveLoadFileContentWorker(myMapController, 0, files);
     }
   });
 
 
 })
+
+function conseutiveLoadFileContentWorker(myMapController, i, files) {
+  if (i < files.length) {
+    loadFileContentWorker(myMapController, files[i], false, function(){
+      myMapController.restartLoading(function(){
+          conseutiveLoadFileContentWorker(myMapController, i + 1, files);
+      });  
+    })
+  }
+  else {
+    console.log("finished plotting all consecutive trajectories!");
+  }
+}
+
+
+function loadFileContentWorker(myMapController, this_file, ask_confirmation, load_finished_callback) {
+  if(this_file.name.indexOf('.csv') != -1) {
+    var csv_reader = new FileReader();
+    if(this_file.name.indexOf('endpoints') != -1) {
+      myMapController.draw_item = "end_point";
+    }
+    else{
+      myMapController.draw_item = "trajectory_point"; 
+    }
+
+    csv_reader.onload = function(e) {
+      console.log(e)
+      var contents = e.target.result;
+      trajectoryData = myMapController.processData(contents)
+      myMapController.trajectory_points = trajectoryData
+      // myMapController.trajectory_points = trajectoryData.slice(0,1)
+      console.log("self.trajectory_points:", myMapController.trajectory_points);
+      console.log("finish loading");
+      if (ask_confirmation) {
+        alert("loading finished");
+      }
+      myMapController.cleanPreviousData(ask_confirmation);
+      load_finished_callback()
+    };
+    csv_reader.readAsText(this_file);
+  }
+  else if(this_file.name.indexOf('.txt') != -1){
+    console.log('txt reader used!');
+    var txt_reader = new FileReader();
+    txt_reader.onload = function(e) {
+      var contents = e.target.result;
+      trajectoryData = myMapController.processTxtData(contents)
+      myMapController.trajectory_points = trajectoryData
+      console.log("self.trajectory_points:", myMapController.trajectory_points);
+      console.log("finish loading");
+      alert("loading finished");
+      myMapController.cleanPreviousData(ask_confirmation);
+    };
+    txt_reader.readAsText(this_file);
+  }  
+}
 
     
 // function markdata(urlList){
