@@ -499,6 +499,7 @@ $(document).ready(function(){
 })
 
 function conseutiveLoadFileContentWorker(myMapController, i, files) {
+  $('#current_trajectory_id').text("Current Trajectory: " + i);
   if (i < files.length) {
     loadFileContentWorker(myMapController, files[i], false, function(){
       myMapController.restartLoading(function(){
