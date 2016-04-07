@@ -10,6 +10,8 @@ function getMapController(){
     trajectory_points: null,
     drawingInterval : 50,
     drawing_speed : 1,
+    currentTime : 0,
+    ABMDrawing : false,
     // warning : {
     //   path: google.maps.SymbolPath.CIRCLE,
     //   fillColor: '#',
@@ -54,6 +56,10 @@ function getMapController(){
        "rgba(255, 0, 0, 1)"
     ],
 
+    setIsABMDrawing : function (is_abm_drawing) {
+      this.ABMDrawing = is_abm_drawing;
+    },
+
 
     initMap : function(){
       var myLatlng = new google.maps.LatLng(1.2,103.8);
@@ -64,7 +70,7 @@ function getMapController(){
       this.map = new google.maps.Map(document.getElementById('map-canvas'), mapOptions);
 
       google.maps.event.addListener(this.map, 'click', function( event ){
-        console.log( "Latitude: "+event.latLng.lat()+" "+", longitude: "+event.latLng.lng() ); 
+        //console.log( "Latitude: "+event.latLng.lat()+" "+", longitude: "+event.latLng.lng() ); 
       });
     },
 
@@ -73,19 +79,19 @@ function getMapController(){
     },
 
     addHeatmapLayer : function(){
-      console.log("inside addHeatmapLayer"); // TODO: if toggle a csv heatmap and then, toggle a txt heatmap, -> bug. CHECK!
+      //console.log("inside addHeatmapLayer"); // TODO: if toggle a csv heatmap and then, toggle a txt heatmap, -> bug. CHECK!
       this.heatmap = new google.maps.visualization.HeatmapLayer({
         data: this.getTrajectoryPoints(),
         map: this.map
       });
-      console.log("heat map is defined!");
+      //console.log("heat map is defined!");
       this.heatmap.set('gradient',this.gradient);
       // this.heatmap.set('radius', 20);
       this.heatmap.set('opacity', 0.9);
       this.heatmap.set('maxIntensity', 600.0);
       // this.changeGradient();
-      console.log(this.heatmap);
-      console.log(this.heatmap.get('gradient'));
+      //console.log(this.heatmap);
+      //console.log(this.heatmap.get('gradient'));
     },
 
     addOriginMarker : function(){
@@ -97,16 +103,16 @@ function getMapController(){
           draggable: true
       });
       origin_marker.addListener('dragend', function(event) {
-          console.log("event:", event);
-          console.log(origin_marker.getPosition().lat());
-          console.log(origin_marker.getPosition().lng());
+          //console.log("event:", event);
+          //console.log(origin_marker.getPosition().lat());
+          //console.log(origin_marker.getPosition().lng());
           origin_marker.setTitle(origin_marker.getPosition().toString());
         });
       this.origin_marker = origin_marker;
     },
 
     addEndMarker: function(){
-      console.log("in add end marker");
+      //console.log("in add end marker");
       var end_marker = new google.maps.Marker({
           position: this.map.getCenter(),
           label: "E",
@@ -115,9 +121,9 @@ function getMapController(){
           draggable: true
       });
       end_marker.addListener('dragend', function(event) {
-          console.log("event:", event);
-          console.log(end_marker.getPosition().lat());
-          console.log(end_marker.getPosition().lng());
+          //console.log("event:", event);
+          //console.log(end_marker.getPosition().lat());
+          //console.log(end_marker.getPosition().lng());
           end_marker.setTitle(end_marker.getPosition().toString());
         });
       this.end_marker = end_marker;
@@ -126,14 +132,14 @@ function getMapController(){
     calculateOriginEndDistance : function(){
       if(this.end_marker != null && this.origin_marker!=null){
         dx_dy_obj = this.LatLonToXY(this.origin_marker.getPosition().lat(), this.origin_marker.getPosition().lng(), this.end_marker.getPosition().lat(), this.end_marker.getPosition().lng());
-        console.log(dx_dy_obj);
+        //console.log(dx_dy_obj);
         var distance = Math.sqrt(Math.pow(dx_dy_obj.dx,2) + Math.pow(dx_dy_obj.dy,2));
         alert("Distance is: " + distance + " km");
       }
     },
 
     LatLonToXY : function(lat1,lon1,lat2, lon2){
-      console.log(lat1, lon1, lat2, lon2);
+      //console.log(lat1, lon1, lat2, lon2);
       var dx = (lon2-lon1)*40000*Math.cos((lat1+lat2)*Math.PI/360)/360
       var dy = (lat1-lat2)*40000/360
       return {dx:dx, dy:dy};
@@ -171,8 +177,8 @@ function getMapController(){
         // points.push( parseFloat(new google.maps.LatLng(this.trajectory_points[i].latitude), parseFloat(this.trajectory_points[i].longitude)));
       }
 
-      console.log("points.length:",points.length);
-      console.log("points:", points)
+      //console.log("points.length:",points.length);
+      //console.log("points:", points)
       return points;
     },
 
@@ -186,8 +192,8 @@ function getMapController(){
       // this.drawSingelTrajectoryPoint(point)
       var self = this;
       this.loadTrajectory(this.trajectryFolder + "tankers/cleanedData/aggregateData.csv",function(trajectory_points){
-        console.log("self.trajectory_points:", self.trajectory_points);
-        console.log("finish loading");
+        //console.log("self.trajectory_points:", self.trajectory_points);
+        //console.log("finish loading");
         alert("loading finished");
         // self.drawTrajectoryAsPoints(trajectory_points, 0);
       })
@@ -200,6 +206,7 @@ function getMapController(){
 
     restartLoading : function(finished_plotting_callback){
       var self = this;
+      //console.log("restart laoding, self.last_drawn_point:", self.last_drawn_point);
       self.stopDrawing = false;
       self.drawTrajectoryAsPoints(self.trajectory_points, self.last_drawn_point + 1, finished_plotting_callback)
     },
@@ -243,14 +250,26 @@ function getMapController(){
 
     processTxtData: function(allText){
       var allTextLines = allText.split(/\r\n|\n/);
+      var i = 0;
+      var own="own";
+      if(allTextLines[0]=="own") {
+        own = "own";
+        i++;
+      } else if(allTextLines[0] == "ownInit") {
+        own = "ownInit";
+        i++;
+      } else { own = "other";}
+      
       var lines = [];
-
-      for (var i=0; i<allTextLines.length; i++) {
-          var data = allTextLines[i].split(' ');
-              var tarr = {};
-              tarr['longitude'] = data[1];
-              tarr['latitude'] = data[2];
-              lines.push(tarr);
+      for (; i<allTextLines.length-1; i++) {
+          var data = allTextLines[i].split(/ |\t/);
+          var tarr = {};
+          tarr['longitude'] = data[data.length-4];
+          tarr['latitude'] = data[data.length-3];
+          tarr['course'] = data[data.length-2];
+          tarr['time'] = data[data.length-1];
+          tarr['vessel'] = own;
+          lines.push(tarr);
       }
       // console.log(lines);
       return lines
@@ -259,51 +278,163 @@ function getMapController(){
     drawTrajectoryAsPoints : function (trajectory_points, index, finished_plotting_callback){
         var self = this;
         if(self.stopDrawing){
-          console.log("plotted point:", self.last_drawn_point, "/",trajectory_points.length);
-          console.log("paused");
+          //console.log("plotted point:", self.last_drawn_point, "/",trajectory_points.length);
+          //console.log("paused");
           return;
         }
         if(index >= trajectory_points.length) {
-          console.log("finish plotting");
+          //console.log("finish plotting");
           finished_plotting_callback()
           return;
         }
-        self.drawSingelTrajectoryPoint(trajectory_points[index]);
-        self.last_drawn_point = index
-        
-        window.setTimeout(function(){
-          self.drawTrajectoryAsPoints(trajectory_points,index + 1, finished_plotting_callback)
-        }, self.drawingInterval / self.drawing_speed);
 
+        if (self.ABMDrawing) {
+          var point;
+          //alert("OwnTime: "+Number(trajectory_points[index].time) + "CurrTime: " +this.currentTime);
+          for( var i = 0; i<self.markers.length; i++){
+            if(self.markers[i].time < self.currentTime) {
+              if(self.markers[i].vessel != "own" && self.markers[i].vessel != "ownInit" && 
+                self.markers[i].time < self.currentTime) {
+                // self.markers[i].markk.setMap(null);
+              }
+              //self.markers[i].markk.setOpacity(Math.max(self.markers[i].markk.getOpacity()*0.8, 0.1));
+            }
+          }
+          num_vessels = 0;
+          //console.log("before new plotting of a set of points, self.markers.length:", self.markers.length);
+          while(index < trajectory_points.length && 
+            Number(trajectory_points[index].time) == self.currentTime) {
+            point = trajectory_points[index];
+            //console.log("points at same time:", point.longitude + ":" + point.latitude + ":" + point.time + ":" + point.vessel);
+            if(self.currentTime == 0) { // first run, get the total number of vessels (i.e., having same time stamps)
+              self.drawSingelTrajectoryPoint(trajectory_points[index]);
+              num_vessels ++;
+            }
+            else {
+              //console.log("markers to update:", self.markers[num_vessels]);
+              self.markers[num_vessels].time = self.currentTime;
+              self.markers[num_vessels].vessel = point.vessel;
+              self.markers[num_vessels].course = point.course;
+              self.updateSingleTrajectoryPointMarker(self.markers[num_vessels].markk, point);
+              num_vessels ++;
+            }
+            
+            self.last_drawn_point = index;
+            index++;
+            $("#TimeDisplay").text("Time Display: " + self.currentTime);
+          }
+          //console.log("end of drawing for points before:", self.currentTime);
+          
+          self.currentTime++;
+          window.setTimeout(function(){
+            self.drawTrajectoryAsPoints(trajectory_points,index, finished_plotting_callback)
+          }, self.drawingInterval / self.drawing_speed);  
+
+        }
+        else {
+          self.drawSingelTrajectoryPoint(trajectory_points[index]);
+          self.last_drawn_point = index
+          
+          window.setTimeout(function(){
+            self.drawTrajectoryAsPoints(trajectory_points,index + 1, finished_plotting_callback)
+          }, self.drawingInterval / self.drawing_speed);  
+        }
+    },
+
+    updateSingleTrajectoryPointMarker : function (marker, new_point) {
+      console.log("new_point.course:", new_point.course);
+      // update marker properties, position and course
+      var newLatLng = new google.maps.LatLng(new_point.latitude, new_point.longitude);
+      marker.setPosition(newLatLng);
+
+      var cID = 1;
+        if(new_point.vessel == "own") {
+          cID = 3;
+        } else if(new_point.vessel == "ownInit") {
+          cID = 5;
+        } else {
+          cID = 1;
+        }
+      var image={
+          path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+          fillColor:this.color_array[cID],
+          fillOpacity: 1,
+          scale: 3,
+          strokeColor: 'black',
+          strokeWeight: 0.5,
+          rotation: Number(new_point.course),
+      };
+
+      marker.setIcon(image);
     },
 
     drawSingelTrajectoryPoint : function (point){
       var self = this;
-     console.log("drawSingelTrajectoryPoint:", point);
-     var image = null;
-     if(this.draw_item == "end_point"){
-       image={
-            path: 'M -2,0 0,-2 2,0 0,2 z',
-            // fillColor:this.color_array[0],
-            fillColor:this.color_endpoint,
-            fillOpacity: 1,
-            scale: 3,
-            strokeColor: 'white',
-            strokeWeight: 0
-        }; 
-     }
-     else{
-      image={
+      //console.log("drawSingelTrajectoryPoint:", point);
+      if (self.ABMDrawing) {
+        var cID = 1;
+        if(point.vessel == "own") {
+          cID = 3;
+        } else if(point.vessel == "ownInit") {
+          cID = 5;
+        } else {
+          cID = 1;
+        }
+           var image={
           path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
-          fillColor:this.color_array[0],
-          fillOpacity: 0.3,
+          fillColor:this.color_array[cID],
+          fillOpacity: 1,
           scale: 3,
-          strokeColor: 'white',
-          strokeWeight: 0,
-          rotation: Number(point.course_over_ground/10.0)
-      };
-     }
-     
+          strokeColor: 'black',
+          strokeWeight: 0.5,
+          rotation: Number(point.course),
+            };
+
+            var myLatlng = new google.maps.LatLng(point.latitude,point.longitude); 
+            // console.log(myLatlng)
+            // console.log(myLatlng.lat());
+            // console.log(myLatlng.lng());
+
+            var marker = new google.maps.Marker({
+                position: myLatlng,
+                map: this.map,
+                title: myLatlng.toString(),
+                icon:image,
+            opacity: 1
+            });
+            var mark={};
+          mark['time']=point.time;
+          mark['markk']=marker;
+          mark['course']=point.course;
+          mark['vessel'] = point.vessel;
+            //alert("Drawing:" + point.longitude + ":" + point.latitude + ":" + point.time + ":" + point.vessel);
+          this.markers.push(mark);
+      }
+      else {
+      var image = null;
+      if(this.draw_item == "end_point"){
+         image={
+              path: 'M -2,0 0,-2 2,0 0,2 z',
+              // fillColor:this.color_array[0],
+              fillColor:this.color_endpoint,
+              fillOpacity: 1,
+              scale: 3,
+              strokeColor: 'white',
+              strokeWeight: 0
+          }; 
+      }
+      else{
+      image={
+           path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+           fillColor:this.color_array[0],
+           fillOpacity: 0.3,
+           scale: 3,
+           strokeColor: 'white',
+           strokeWeight: 0,
+           rotation:  Number(point.course_over_ground/10.0)
+        };
+      }
+       
 
       var myLatlng = new google.maps.LatLng(point.latitude,point.longitude); 
       // console.log(myLatlng)
@@ -326,13 +457,22 @@ function getMapController(){
           self.drawing_speed = point.speed_over_ground
         }
       }
-                
+                  
       this.markers.push(marker);
+
+      }
+     
     },
 
     setAllMap : function (map) {
           for (var i = 0; i < this.markers.length; i++) {
-            this.markers[i].setMap(map);
+            if(this.ABMDrawing) {
+              this.markers[i].markk.setMap(map);  
+            }
+            else {
+              this.markers[i].setMap(map);
+            }
+            
           }
     },
       
@@ -352,6 +492,7 @@ function getMapController(){
     },
 
     cleanPreviousData : function(ask_confirmation){
+      this.currentTime = 0; // for ABM drawing
       if(this.heatmap !=null){
         this.heatmap.setMap(null);// remove from current map 
         this.heatmap = null; // set to null again
@@ -399,8 +540,6 @@ $(document).ready(function(){
   });
   myMapController.setDrawingInterval($('#myslider').val());
   $('.slider').on('slideStop', function(){
-    // console.log($('.slider').('getValue'));
-    console.log($('#myslider').val());
     myMapController.setDrawingInterval($('#myslider').val());
   });
   
@@ -412,6 +551,7 @@ $(document).ready(function(){
   $("#clearTrajectory").click(function(){
     myMapController.deleteMarkers();
     myMapController.last_drawn_point = -1; // reset the starting point
+    myMapController.currentTime = 0; // reset time for ABM drawing
   });
 
   $("#placeOriginMarker").click(function(){
@@ -432,7 +572,7 @@ $(document).ready(function(){
     if(text == "StartPlotting"){
       $("#pauseStartDrawing").text("PausePlotting");
       myMapController.restartLoading(function () {
-        consol.log("finished from button press!")
+        console.log("finished from button press!")
       });
     }
     else if(text == "PausePlotting"){
@@ -442,7 +582,7 @@ $(document).ready(function(){
     else if(text == "ResumePlotting"){
      $("#pauseStartDrawing").text("PausePlotting") ;
      myMapController.restartLoading(function(){
-      consol.log("finished from button press!")
+      console.log("finished from button press!")
      });
     }
   })
@@ -524,7 +664,6 @@ function loadFileContentWorker(myMapController, this_file, ask_confirmation, loa
     }
 
     csv_reader.onload = function(e) {
-      console.log(e)
       var contents = e.target.result;
       trajectoryData = myMapController.processData(contents)
       myMapController.trajectory_points = trajectoryData
@@ -546,10 +685,22 @@ function loadFileContentWorker(myMapController, this_file, ask_confirmation, loa
       var contents = e.target.result;
       trajectoryData = myMapController.processTxtData(contents)
       myMapController.trajectory_points = trajectoryData
+      myMapController.setIsABMDrawing(true);
+      myMapController.trajectory_points.sort(function (a, b) {
+        var diff;
+        if(a.time == b.time){
+          diff = (a.vessel!="own");
+        } else {
+          diff = a.time - b.time;
+        }
+         //alert(diff);
+         return diff;
+      });
       console.log("self.trajectory_points:", myMapController.trajectory_points);
       console.log("finish loading");
       alert("loading finished");
       myMapController.cleanPreviousData(ask_confirmation);
+      
     };
     txt_reader.readAsText(this_file);
   }  
