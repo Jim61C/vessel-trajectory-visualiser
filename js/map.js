@@ -342,7 +342,7 @@ function getMapController(){
     },
 
     updateSingleTrajectoryPointMarker : function (marker, new_point) {
-      console.log("new_point.course:", new_point.course);
+      // console.log("new_point.course:", new_point.course);
       // update marker properties, position and course
       var newLatLng = new google.maps.LatLng(new_point.latitude, new_point.longitude);
       marker.setPosition(newLatLng);
@@ -673,6 +673,7 @@ function loadFileContentWorker(myMapController, this_file, ask_confirmation, loa
       if (ask_confirmation) {
         alert("loading finished");
       }
+      myMapController.setIsABMDrawing(false);
       myMapController.cleanPreviousData(ask_confirmation);
       load_finished_callback()
     };
@@ -699,6 +700,7 @@ function loadFileContentWorker(myMapController, this_file, ask_confirmation, loa
       console.log("self.trajectory_points:", myMapController.trajectory_points);
       console.log("finish loading");
       alert("loading finished");
+      myMapController.markers = []; // force clean markers array for the case of ABM drawing
       myMapController.cleanPreviousData(ask_confirmation);
       
     };
