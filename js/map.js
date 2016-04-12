@@ -269,6 +269,10 @@ function getMapController(){
           tarr['course'] = data[data.length-2];
           tarr['time'] = data[data.length-1];
           tarr['vessel'] = own;
+          if (data.length >= 6) { // has more fields
+            tarr['pattern_id'] = data[data.length - 6]
+            tarr['on_pattern_pos'] = data[data.length - 5]
+          }
           lines.push(tarr);
       }
       // console.log(lines);
@@ -357,6 +361,14 @@ function getMapController(){
         }
       var image={
           path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
+          //url: "http://localhost/~jimxing/vessel_trajectory_visualizer/imgs/vessel1.png",
+
+          // size: new google.maps.Size(20, 32),
+          // // The origin for this image is (0, 0).
+          // origin: new google.maps.Point(0, 0),
+          // // The anchor for this image is the base of the flagpole at (0, 32).
+          // anchor: new google.maps.Point(0, 32),
+
           fillColor:this.color_array[cID],
           fillOpacity: 1,
           scale: 3,
@@ -366,12 +378,28 @@ function getMapController(){
       };
 
       marker.setIcon(image);
+
+      // update title
+      var myLatlng = new google.maps.LatLng(new_point.latitude,new_point.longitude); 
+            // console.log(myLatlng)
+            // console.log(myLatlng.lat());
+            // console.log(myLatlng.lng());
+      var str_suffix = "";
+      if (new_point.on_pattern_pos) {
+        str_suffix += ";on_pattern_pos:" + new_point.on_pattern_pos;
+      }
+      if(new_point.pattern_id) {
+       str_suffix += ";pattern_id:" + new_point.pattern_id; 
+      }
+      marker.setTitle(myLatlng.toString() + str_suffix);
+      
     },
 
     drawSingelTrajectoryPoint : function (point){
       var self = this;
       //console.log("drawSingelTrajectoryPoint:", point);
       if (self.ABMDrawing) {
+        console.log("is_abm_drawing, point:", point);
         var cID = 1;
         if(point.vessel == "own") {
           cID = 3;
@@ -380,27 +408,41 @@ function getMapController(){
         } else {
           cID = 1;
         }
-           var image={
+          var image={
           path: google.maps.SymbolPath.FORWARD_CLOSED_ARROW,
           fillColor:this.color_array[cID],
           fillOpacity: 1,
           scale: 3,
           strokeColor: 'black',
           strokeWeight: 0.5,
-          rotation: Number(point.course),
-            };
+          rotation: Number(point.course)
+          };
+
+          var shape = {
+            coords: [1, 1, 1, 20, 18, 20, 18, 1],
+            type: 'poly'
+          };
 
             var myLatlng = new google.maps.LatLng(point.latitude,point.longitude); 
             // console.log(myLatlng)
             // console.log(myLatlng.lat());
             // console.log(myLatlng.lng());
+            var str_suffix = "";
+            if (point.on_pattern_pos) {
+              str_suffix += ";on_pattern_pos:" + point.on_pattern_pos;
+            }
+            if(point.pattern_id) {
+             str_suffix += ";pattern_id:" + point.pattern_id; 
+            }
 
             var marker = new google.maps.Marker({
                 position: myLatlng,
                 map: this.map,
-                title: myLatlng.toString(),
-                icon:image,
-            opacity: 1
+                title: myLatlng.toString() + str_suffix,
+                icon: image,
+                shape: shape,
+                opacity: 1,
+                rotation: Number(point.course)
             });
             var mark={};
           mark['time']=point.time;
@@ -492,6 +534,7 @@ function getMapController(){
     },
 
     cleanPreviousData : function(ask_confirmation){
+      console.log("cleanPreviousData!")
       this.currentTime = 0; // for ABM drawing
       if(this.heatmap !=null){
         this.heatmap.setMap(null);// remove from current map 
@@ -552,6 +595,7 @@ $(document).ready(function(){
     myMapController.deleteMarkers();
     myMapController.last_drawn_point = -1; // reset the starting point
     myMapController.currentTime = 0; // reset time for ABM drawing
+    $("#TimeDisplay").text("Time Display: " + myMapController.currentTime);
   });
 
   $("#placeOriginMarker").click(function(){
@@ -631,6 +675,7 @@ $(document).ready(function(){
       });
     }
     else {
+      myMapController.markers = []; // PURPOSE for DEBUGGING PURPOSE
       conseutiveLoadFileContentWorker(myMapController, 0, files);
     }
   });
@@ -673,8 +718,9 @@ function loadFileContentWorker(myMapController, this_file, ask_confirmation, loa
       if (ask_confirmation) {
         alert("loading finished");
       }
-      myMapController.setIsABMDrawing(false);
+
       myMapController.cleanPreviousData(ask_confirmation);
+      myMapController.setIsABMDrawing(false);
       load_finished_callback()
     };
     csv_reader.readAsText(this_file);
@@ -686,7 +732,6 @@ function loadFileContentWorker(myMapController, this_file, ask_confirmation, loa
       var contents = e.target.result;
       trajectoryData = myMapController.processTxtData(contents)
       myMapController.trajectory_points = trajectoryData
-      myMapController.setIsABMDrawing(true);
       myMapController.trajectory_points.sort(function (a, b) {
         var diff;
         if(a.time == b.time){
@@ -700,8 +745,9 @@ function loadFileContentWorker(myMapController, this_file, ask_confirmation, loa
       console.log("self.trajectory_points:", myMapController.trajectory_points);
       console.log("finish loading");
       alert("loading finished");
-      myMapController.markers = []; // force clean markers array for the case of ABM drawing
+      myMapController.markers = []; // PURPOSE FOR DEBUGGING PURPOSE
       myMapController.cleanPreviousData(ask_confirmation);
+      myMapController.setIsABMDrawing(true);
       
     };
     txt_reader.readAsText(this_file);
