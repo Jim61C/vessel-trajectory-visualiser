@@ -295,7 +295,7 @@ function getMapController(){
         if (self.ABMDrawing) {
           var point;
           //alert("OwnTime: "+Number(trajectory_points[index].time) + "CurrTime: " +this.currentTime);
-          for( var i = 0; i<self.markers.length; i++){
+          for( var i = 0; i<self.markers.length; i++) {
             if(self.markers[i].time < self.currentTime) {
               if(self.markers[i].vessel != "own" && self.markers[i].vessel != "ownInit" && 
                 self.markers[i].time < self.currentTime) {
@@ -304,29 +304,46 @@ function getMapController(){
               //self.markers[i].markk.setOpacity(Math.max(self.markers[i].markk.getOpacity()*0.8, 0.1));
             }
           }
+
           num_vessels = 0;
+          updated_vessels = 0;
           //console.log("before new plotting of a set of points, self.markers.length:", self.markers.length);
           while(index < trajectory_points.length && 
             Number(trajectory_points[index].time) == self.currentTime) {
             point = trajectory_points[index];
             //console.log("points at same time:", point.longitude + ":" + point.latitude + ":" + point.time + ":" + point.vessel);
-            if(self.currentTime == 0) { // first run, get the total number of vessels (i.e., having same time stamps)
+            if (self.currentTime == 0) { 
+              // first run, get the total number of vessels (i.e., having same time stamps)
+              // or if this run, number of vessels increase
               self.drawSingelTrajectoryPoint(trajectory_points[index]);
               num_vessels ++;
             }
+            else if (num_vessels >= self.markers.length) {
+              self.drawSingelTrajectoryPoint(trajectory_points[index]);
+              num_vessels ++; 
+              updated_vessels ++;
+            }
             else {
               //console.log("markers to update:", self.markers[num_vessels]);
+              self.markers[num_vessels].markk.setVisible(true);
               self.markers[num_vessels].time = self.currentTime;
               self.markers[num_vessels].vessel = point.vessel;
               self.markers[num_vessels].course = point.course;
               self.updateSingleTrajectoryPointMarker(self.markers[num_vessels].markk, point);
               num_vessels ++;
+              updated_vessels ++;
             }
             
             self.last_drawn_point = index;
             index++;
             $("#TimeDisplay").text("Time Display: " + self.currentTime);
           }
+
+          while(self.currentTime != 0 && updated_vessels < self.markers.length) { // if number of vessels decrease at this timestamp
+            self.markers[updated_vessels].markk.setVisible(false);
+            updated_vessels ++;
+          }
+
           //console.log("end of drawing for points before:", self.currentTime);
           
           self.currentTime++;
@@ -449,7 +466,7 @@ function getMapController(){
           mark['markk']=marker;
           mark['course']=point.course;
           mark['vessel'] = point.vessel;
-            //alert("Drawing:" + point.longitude + ":" + point.latitude + ":" + point.time + ":" + point.vessel);
+          console.log("Drawing:" + point.longitude + ":" + point.latitude + ":" + point.time + ":" + point.vessel);
           this.markers.push(mark);
       }
       else {
@@ -675,8 +692,24 @@ $(document).ready(function(){
       });
     }
     else {
-      myMapController.markers = []; // PURPOSE for DEBUGGING PURPOSE
-      conseutiveLoadFileContentWorker(myMapController, 0, files);
+      all_txt_files_flag = true
+      for (var i = 0; i < files.length; i++) {
+        if (files[i].name.indexOf('.txt') == -1) {
+          all_txt_files_flag = false
+        }
+      }
+
+      if (all_txt_files_flag) {
+        for (var i = 0; i < files.length ; i++) {
+          loadFileContentWorker(myMapController, files[i], true, function() {
+            console.log("load finished callback, mutiple txt case");
+          });
+        }
+      }
+      else {
+        myMapController.markers = []; // PURPOSE for DEBUGGING PURPOSE
+        conseutiveLoadFileContentWorker(myMapController, 0, files);
+      }
     }
   });
 
@@ -686,7 +719,7 @@ $(document).ready(function(){
 function conseutiveLoadFileContentWorker(myMapController, i, files) {
   $('#current_trajectory_id').text("Current Trajectory: " + i);
   if (i < files.length) {
-    loadFileContentWorker(myMapController, files[i], false, function(){
+    loadFileContentWorker(myMapController, files[i], true, function(){
       myMapController.restartLoading(function(){
           conseutiveLoadFileContentWorker(myMapController, i + 1, files);
       });  
@@ -725,13 +758,19 @@ function loadFileContentWorker(myMapController, this_file, ask_confirmation, loa
     };
     csv_reader.readAsText(this_file);
   }
-  else if(this_file.name.indexOf('.txt') != -1){
+  else if(this_file.name.indexOf('.txt') != -1) {
     console.log('txt reader used!');
     var txt_reader = new FileReader();
     txt_reader.onload = function(e) {
       var contents = e.target.result;
-      trajectoryData = myMapController.processTxtData(contents)
-      myMapController.trajectory_points = trajectoryData
+      trajectoryData = myMapController.processTxtData(contents);
+      
+      if(myMapController.trajectory_points == null) {
+        myMapController.trajectory_points = trajectoryData;
+      } else {
+        myMapController.trajectory_points.push.apply(myMapController.trajectory_points, trajectoryData);
+      }
+
       myMapController.trajectory_points.sort(function (a, b) {
         var diff;
         if(a.time == b.time){
@@ -748,7 +787,6 @@ function loadFileContentWorker(myMapController, this_file, ask_confirmation, loa
       myMapController.markers = []; // PURPOSE FOR DEBUGGING PURPOSE
       myMapController.cleanPreviousData(ask_confirmation);
       myMapController.setIsABMDrawing(true);
-      
     };
     txt_reader.readAsText(this_file);
   }  
